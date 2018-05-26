@@ -9,7 +9,7 @@ class Cell:
         Cell.cellCount += 1
 
 class Map:
-    "Map"
+    "Map, create empty map by default, edit each cell 1 by 1"
     def __init__(self, dimention):
         self.dimention = dimention
         self.cells = [[Cell(0,[0,0,0,0]) for i in range(dimention[0])] for j in range(dimention[1])]
@@ -37,6 +37,7 @@ class State:
         self.bestSetup = copy.deepcopy(cameras)
         self.__compute_min_achievement(cameras)
 
+    #Generate the next state by moving 1 camera by 1 spot
     def move_camera(self, camera_num):
         position = self.cameras[camera_num].position
         dimention = self.map.dimention
@@ -50,11 +51,11 @@ class State:
             position[0] += 1
             return State(self.map, copy.deepcopy(self.cameras))
 
-
-    def __compute_Achievement(self):
+    #Compute  achievement for current orientation setup
+    def __compute_Achievement(self, cameras):
         ss_map = copy.deepcopy(self.map)
 
-        for camera in self.cameras:
+        for camera in cameras:
             self.__set_visible(camera, ss_map)
         achivement = 0
         for i in ss_map.cells:
@@ -63,9 +64,10 @@ class State:
                     achivement += j.priority
         return achivement
 
+    #Compute achivement for all possible oriantation for current camera placement
     def __compute_min_achievement(self, camera):
         if len(camera) == 1:
-            achievement = self.__compute_Achievement()
+            achievement = self.__compute_Achievement(camera)
             if achievement < self.minAchievement:
                 self.minAchievement = achievement
                 self.bestSetup = copy.deepcopy(self.cameras)
@@ -75,6 +77,7 @@ class State:
                 self.__compute_min_achievement(new_camera[1:])
                 camera[0].orientation += 1
 
+    #Visibility formula, decide what u can see, not yet complete
     def __set_visible(self, camera, map):
         map.cells[camera.position[0] - 1][camera.position[1] ].priority -= 1
         map.cells[camera.position[0] + 1][camera.position[1] ].priority -= 1
@@ -108,7 +111,7 @@ class BFS:
         self.best_achievement = self.inistate.minAchievement
         self.best_setup = self.inistate.bestSetup
         self.cameras = cameras
-
+    #BFS with stack
     def start_bfs(self):
         stack = []
         stack.insert(0, self.inistate)
