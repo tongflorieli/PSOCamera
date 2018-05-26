@@ -1,45 +1,32 @@
 import copy
-class Cell:
-    "Basic cell"
-    cellCount = 0
-    def __init__(self, priority, wall):
-        self.priority = priority
-        self.up, self.right, self.down, self.left = wall[0], wall[1], wall[2], wall[3]
-        self.id = Cell.cellCount
-        Cell.cellCount += 1
 
 class Map:
-    "Map, create empty map by default, edit each cell 1 by 1"
     def __init__(self, dimention):
+        "dimention is a length 2 array"
         self.dimention = dimention
-        self.cells = [[Cell(0,[0,0,0,0]) for i in range(dimention[0])] for j in range(dimention[1])]
-        self.totalPriority = 0
+        self.map = [[[0, False]for i in range(dimention[0])] for j in range(dimention[1])]
+        self.total_priority = 0
 
-    def set_cell(self, position, cell):
-        self.cells[position[0]][position[1]] = cell
-        if cell.priority ==1 :
-            self.totalPriority += 1
-
+    def set_cell(self,position, value = [0,False]):
+        self.map[position[0]][position[1]] = value
+        self.total_priority += value[0]
 
 class Camera:
-    def __init__(self, position):
+    def __init__(self, position, orientation = 0):
         "0 = left, 1 = up, 2 = right, 3 = down"
         self.position = position
-        self.orientation = 0
-
+        self.orientation = orientation
+    def __str__(self):
+        return "[{}, {}]".format(self.position, self.orientation)
 
 class State:
-    "state, cameras has to be array"
     def __init__(self, map, cameras):
         self.map = map
         self.cameras = cameras
-        self.minAchievement = map.totalPriority
-        self.bestSetup = copy.deepcopy(cameras)
-        self.__compute_min_achievement(cameras)
 
-    #Generate the next state by moving 1 camera by 1 spot
     def move_camera(self, camera_num):
-        position = self.cameras[camera_num].position
+        new_cams = copy.deepcopy(self.cameras)
+        position = new_cams[camera_num].position
         dimention = self.map.dimention
         if position[0] >= dimention[0] - 1:
             position[0] = 0
@@ -49,100 +36,78 @@ class State:
             return 0
         else:
             position[0] += 1
-            return State(self.map, copy.deepcopy(self.cameras))
+            return State(self.map, new_cams)
 
-    #Compute  achievement for current orientation setup
-    def __compute_Achievement(self, cameras):
-        ss_map = copy.deepcopy(self.map)
+class Evaluator:
+    def __init__(self):
+        self.hi = "hi"
 
-        for camera in cameras:
-            self.__set_visible(camera, ss_map)
-        achivement = 0
-        for i in ss_map.cells:
-            for j in i:
-                if j.priority > 0:
-                    achivement += j.priority
-        return achivement
+    def evaluate(self, state):
+        current_best = [9999999,0]
+        self.compute_min_achievement(state.cameras, state.map, current_best)
+        return current_best
 
-    #Compute achivement for all possible oriantation for current camera placement
-    def __compute_min_achievement(self, camera):
-        if len(camera) == 1:
-            achievement = self.__compute_Achievement(camera)
-            if achievement < self.minAchievement:
-                self.minAchievement = achievement
-                self.bestSetup = copy.deepcopy(self.cameras)
+    def compute_min_achievement(self, cameras, map, current_best, depth = 0):
+        if depth >= len(cameras):
+            achievement = self.compute_achievement(cameras, map)
+            if achievement < current_best[0]:
+                current_best = [achievement, copy.deepcopy(cameras)]
+            #print(*cameras)
+
         else:
-            while camera[0].orientation <= 3:
-                new_camera = copy.deepcopy(camera)
-                self.__compute_min_achievement(new_camera[1:])
-                camera[0].orientation += 1
+            while cameras[depth].orientation <= 3:
+                new_cameras = copy.deepcopy(cameras)
+                self.compute_min_achievement(new_cameras, map, current_best, depth + 1)
+                cameras[depth].orientation += 1
 
-    #Visibility formula, decide what u can see, not yet complete
-    def __set_visible(self, camera, map):
-        map.cells[camera.position[0] - 1][camera.position[1] ].priority -= 1
-        map.cells[camera.position[0] + 1][camera.position[1] ].priority -= 1
-        map.cells[camera.position[0] ][camera.position[1] + 1].priority -= 1
-        map.cells[camera.position[0] ][camera.position[1] - 1].priority -= 1
-    #    if camera.orientation == 0:
-    #        if camera.position[0] - 1 >= 0 and camera.position[1] - 1 >= 0 and map.cells[camera.position[0]-1][camera.position[0] - 1].down == 0:
-    #            map.cells[camera.position[0]-1][camera.position[1]-1].priority -= 1
-    #        if camera.position[0] - 1 >= 0 and camera.position[1]  >= 0 and map.cells[camera.position[0]-1][camera.position[0]].right == 0:
-    #            map.cells[camera.position[0]-1][camera.position[1]].priority -= 2
-    #        if camera.position[0] - 1 >= 0 and camera.position[1] + 1 >= 0 and map.cells[camera.position[0]-1][camera.position[0] + 1].up == 0:
-    #            map.cells[camera.position[0]-1][camera.position[1]+1].priority -= 1
-    #    if camera.orientation == 1:
-    #        if camera.position[0] - 1 >= 0 and camera.position[1] - 1 >= 0 and map.cells[camera.position[0]-1][camera.position[0] - 1].right == 0:
-    #            map.cells[camera.position[0]-1][camera.position[1]-1].priority -= 1
-    #        if camera.position[0]  >= 0 and camera.position[1] -1 >= 0 and map.cells[camera.position[0]][camera.position[0] - 1].down == 0:
-    #            map.cells[camera.position[0]][camera.position[1] -1].priority -= 2
-    #        if camera.position[0] + 1 >= 0 and camera.position[1] - 1 >= 0 and map.cells[camera.position[0]+1][camera.position[0] - 1].left == 0:
-    #            map.cells[camera.position[0]+1][camera.position[1]-1].priority -= 1
-    #    if camera.orientation == 1:
-    #        if camera.position[0] - 1 >= 0 and camera.position[1] - 1 >= 0 and map.cells[camera.position[0]-1][camera.position[0] - 1].right == 0:
-    #            map.cells[camera.position[0]-1][camera.position[1]-1].priority -= 1
-    #        if camera.position[0]  >= 0 and camera.position[1] -1 >= 0 and map.cells[camera.position[0]][camera.position[0] - 1].down == 0:
-    #            map.cells[camera.position[0]][camera.position[1] -1].priority -= 2
-    #        if camera.position[0] + 1 >= 0 and camera.position[1] - 1 >= 0 and map.cells[camera.position[0]+1][camera.position[0] - 1].left == 0:
-    #            map.cells[camera.position[0]+1][camera.position[1]-1].priority -= 1
+
+
+    def compute_achievement(self, cameras, map):
+        local_map = copy.deepcopy(map)
+        achievement = 0
+        for camera in cameras:
+            self.camera_visibility_model(camera, map)
+        for i in local_map:
+            for j in i:
+                if j[0] > 0:
+                    achievement += j[0]
+
+        return achievement
+
+    def camera_visibility_model(self, camera, map):
+        return "TODO"
 
 class BFS:
     def __init__(self, map, cameras):
-        self.inistate = State(map,cameras)
-        self.best_achievement = self.inistate.minAchievement
-        self.best_setup = self.inistate.bestSetup
+        self.best_achievement = map.total_priority
+        self.best_setup = cameras
         self.cameras = cameras
+        self.map = map
     #BFS with stack
     def start_bfs(self):
+        inistate = State(self.map, self.cameras)
         stack = []
-        stack.insert(0, self.inistate)
+        stack.insert(0, inistate)
+        evaluator = Evaluator()
         while len(stack) > 0:
             current = stack.pop()
-            if current.minAchievement < self.best_achievement:
-                current.minAchievement = self.best_achievement
-                current.bestSetup = self.best_setup
+            result = evaluator.evaluate(current)
+            if result[0] < self.best_achievement:
+                current.minAchievement = result[0]
+                current.bestSetup = result[1]
             for index, camera in enumerate(self.cameras):
                 nextState = current.move_camera(index)
                 if nextState != 0:
-                    stack.insert(0,nextState)
+                    stack.insert(0, nextState)
         print('bfs complete!')
         return
+def Test():
+    print("1234")
 
-def main():
-    print('start')
-    map = Map([5,5])
-    map.set_cell([1,1], Cell(1, [0,0,0,0]))
-    cameras = [Camera([0,0])]*1
-    #print(cameras)
-    #bfs = BFS(map,cameras)
+    cameras = [Camera([0, 0]),Camera([0, 0]),Camera([0, 0]),Camera([0, 0])]
 
-    state = State(map,cameras)
-    state = state.move_camera(0)
-    print('done')
-
-    test = [1,2,3]
-    print(test[-1])
+    evaluator = Evaluator()
+    evaluator.compute_min_achievement(cameras, None,0)
 
 
-
-
-main()
+Test()
