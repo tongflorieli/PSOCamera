@@ -59,8 +59,21 @@ class Evaluator:
         current_best = [9999999,0]
         local_cam = copy.deepcopy(state.cameras)
         self.check_valid_direction(local_cam, state.map)
-        value = self.compute_min_achievement(local_cam, state.map, current_best)
-        return value
+        local_cam = [cam for cam in local_cam if len(cam.valid_direction) > 0]
+        local_cam = self.filter_same_position(local_cam)
+        if len(local_cam)> 0:
+            current_best = self.compute_min_achievement(local_cam, state.map, current_best)
+        return current_best
+
+    def filter_same_position(self, cameras):
+        output = []
+        seen = set()
+        for camera in cameras:
+            key = ''.join(str(x) for x in camera.position)
+            if key not in seen:
+                output.append(camera)
+                seen.add(key)
+        return output
 
     def check_valid_direction(self, cameras, map):
 
@@ -97,11 +110,10 @@ class Evaluator:
         else:
             temp = current_best
             while cameras[depth].orientation <= 3:
-                if cameras[depth].orientation in cameras[depth].valid_direction:
-                    new_cameras = copy.deepcopy(cameras)
-                    ach = self.compute_min_achievement(new_cameras, map, current_best, depth + 1)
-                    if ach[0] < temp[0]:
-                        temp = ach
+                new_cameras = copy.deepcopy(cameras)
+                ach = self.compute_min_achievement(new_cameras, map, current_best, depth + 1)
+                if ach[0] < temp[0]:
+                    temp = ach
                 cameras[depth].orientation += 1
             return temp
 
@@ -244,7 +256,7 @@ class BeamSearch:
             iterationCount +=1
             if iterationCount > printThreshold:
                 print("iteration Cout: " + str(iterationCount))
-                printThreshold += 100
+                printThreshold += 10
             current = queue.pop()
 
 
@@ -369,27 +381,26 @@ def main():
     BeamSearchTest()
 
 def complex_setup():
-    map = Map([50,50])
-    map.set_cell([10, 7], [1, True])
-    map.set_cell([1, 7], [1, True])
-    map.set_cell([1, 7], [1, True])
-    map.set_cell([1, 7], [1, True])
-    map.set_cell([1, 7], [1, True])
-    map.set_cell([1, 7], [1, True])
-    map.set_cell([1, 7], [1, True])
-    map.set_cell([1, 7], [1, True])
-    map.set_cell([1, 7], [1, True])
-
-
-def BeamSearchTest():
-    map = Map([9, 9])
-    map.set_cell([1, 7], [1, False])
-    map.set_cell([4, 6], [0, True])
-    map.set_cell([4, 4], [1, False])
-    map.set_cell([2, 3], [1, False])
+    map = Map([15,15])
+    map.set_cell([1, 9], [1, False])
+    map.set_cell([12, 4], [0, True])
+    map.set_cell([4, 6], [1, False])
+    map.set_cell([5, 3], [1, False])
+    map.set_cell([12, 14], [1, False])
 
     cameras = [Camera([0, 0], 0), Camera([0, 0], 0), Camera([0, 0], 0), Camera([0, 0], 0)]
-    bfs = BeamSearch(map, cameras, 15)
+    return (map,cameras)
+
+def BeamSearchTest():
+    # map = Map([9, 9])
+    # map.set_cell([1, 7], [1, False])
+    # map.set_cell([4, 4], [0, True])
+    # map.set_cell([4, 6], [1, False])
+    # map.set_cell([2, 3], [1, False])
+    # map.set_cell([8, 8], [1, False])
+    # cameras = [Camera([0, 0], 0), Camera([0, 0], 0), Camera([0, 0], 0), Camera([0, 0], 0)]
+    setup = complex_setup()
+    bfs = BeamSearch(setup[0], setup[1], 10)
     result = bfs.start_bfs()
     print("Final Result: ", result[0])
     print(*result[1])
