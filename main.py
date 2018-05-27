@@ -23,6 +23,7 @@ class Camera:
         "0 = left, 1 = up, 2 = right, 3 = down"
         self.position = position
         self.orientation = orientation
+        self.valid_direction = []
     def __str__(self):
         return "[{}, {}]".format(self.position, self.orientation)
 
@@ -56,8 +57,30 @@ class Evaluator:
 
     def evaluate(self, state):
         current_best = [9999999,0]
-        value = self.compute_min_achievement(copy.deepcopy(state.cameras), state.map, current_best)
+        local_cam = copy.deepcopy(state.cameras)
+        self.check_valid_direction(local_cam, state.map)
+        value = self.compute_min_achievement(local_cam, state.map, current_best)
         return value
+
+    def check_valid_direction(self, cameras, map):
+
+        # print(local_map)
+        for camera in cameras:
+            while camera.orientation < 4:
+                local_map = copy.deepcopy(map)
+                achievement = 0
+                self.camera_visibility_model(camera, local_map)
+                for i in local_map.grid:
+                    for j in i:
+                        if j[0] > 0:
+                            achievement += j[0]
+                if achievement < map.total_priority:
+                    camera.valid_direction.insert(0,camera.orientation)
+                camera.orientation +=1
+            #reset orientation
+            camera.orientation = 0
+        #print(*cameras)
+
 
     #compute achievement for all possible camera orientation setup and find minimum achievement
     def compute_min_achievement(self, cameras, map, current_best, depth = 0):
@@ -74,10 +97,11 @@ class Evaluator:
         else:
             temp = current_best
             while cameras[depth].orientation <= 3:
-                new_cameras = copy.deepcopy(cameras)
-                ach = self.compute_min_achievement(new_cameras, map, current_best, depth + 1)
-                if ach[0] < temp[0]:
-                    temp = ach
+                if cameras[depth].orientation in cameras[depth].valid_direction:
+                    new_cameras = copy.deepcopy(cameras)
+                    ach = self.compute_min_achievement(new_cameras, map, current_best, depth + 1)
+                    if ach[0] < temp[0]:
+                        temp = ach
                 cameras[depth].orientation += 1
             return temp
 
@@ -344,15 +368,28 @@ def main():
     #initialize map
     BeamSearchTest()
 
+def complex_setup():
+    map = Map([50,50])
+    map.set_cell([10, 7], [1, True])
+    map.set_cell([1, 7], [1, True])
+    map.set_cell([1, 7], [1, True])
+    map.set_cell([1, 7], [1, True])
+    map.set_cell([1, 7], [1, True])
+    map.set_cell([1, 7], [1, True])
+    map.set_cell([1, 7], [1, True])
+    map.set_cell([1, 7], [1, True])
+    map.set_cell([1, 7], [1, True])
+
+
 def BeamSearchTest():
     map = Map([9, 9])
     map.set_cell([1, 7], [1, False])
     map.set_cell([4, 6], [0, True])
     map.set_cell([4, 4], [1, False])
     map.set_cell([2, 3], [1, False])
-    map.set_cell([4, 7], [1, False])
+
     cameras = [Camera([0, 0], 0), Camera([0, 0], 0), Camera([0, 0], 0), Camera([0, 0], 0)]
-    bfs = BeamSearch(map, cameras, 2)
+    bfs = BeamSearch(map, cameras, 15)
     result = bfs.start_bfs()
     print("Final Result: ", result[0])
     print(*result[1])
