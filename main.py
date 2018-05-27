@@ -23,6 +23,7 @@ class Camera:
         "0 = left, 1 = up, 2 = right, 3 = down"
         self.position = position
         self.orientation = orientation
+        self.valid_direction = []
     def __str__(self):
         return "[{}, {}]".format(self.position, self.orientation)
 
@@ -56,8 +57,30 @@ class Evaluator:
 
     def evaluate(self, state):
         current_best = [9999999,0]
-        value = self.compute_min_achievement(copy.deepcopy(state.cameras), state.map, current_best)
+        local_cam = copy.deepcopy(state.cameras)
+        self.check_valid_direction(local_cam, state.map)
+        value = self.compute_min_achievement(local_cam, state.map, current_best)
         return value
+
+    def check_valid_direction(self, cameras, map):
+
+        # print(local_map)
+        for camera in cameras:
+            while camera.orientation < 4:
+                local_map = copy.deepcopy(map)
+                achievement = 0
+                self.camera_visibility_model(camera, local_map)
+                for i in local_map.grid:
+                    for j in i:
+                        if j[0] > 0:
+                            achievement += j[0]
+                if achievement < map.total_priority:
+                    camera.valid_direction.insert(0,camera.orientation)
+                camera.orientation +=1
+            #reset orientation
+            camera.orientation = 0
+        #print(*cameras)
+
 
     #compute achievement for all possible camera orientation setup and find minimum achievement
     def compute_min_achievement(self, cameras, map, current_best, depth = 0):
@@ -74,10 +97,11 @@ class Evaluator:
         else:
             temp = current_best
             while cameras[depth].orientation <= 3:
-                new_cameras = copy.deepcopy(cameras)
-                ach = self.compute_min_achievement(new_cameras, map, current_best, depth + 1)
-                if ach[0] < temp[0]:
-                    temp = ach
+                if cameras[depth].orientation in cameras[depth].valid_direction:
+                    new_cameras = copy.deepcopy(cameras)
+                    ach = self.compute_min_achievement(new_cameras, map, current_best, depth + 1)
+                    if ach[0] < temp[0]:
+                        temp = ach
                 cameras[depth].orientation += 1
             return temp
 
@@ -133,8 +157,15 @@ class Evaluator:
 class BeamSearchQueue:
     def __init__(self, size):
         self.size = size
-        self.priorityQueue = []
+        self.queue = []
         self.dict = {}
+
+    def __keygen(self, cameras):
+        key = ""
+        for camera in cameras:
+            key += ''.join(str(x) for x in camera.position)
+            key += ':'
+        return key
 
     def push(self, state, achievement):
         key = ""
@@ -145,7 +176,22 @@ class BeamSearchQueue:
             return
         else:
             self.dict.update({key: state})
-            self.queue.insert(0, state)
+            self.queue.insert(0, (achievement,state))
+            if len(self.queue) > self.size:
+                maxLocation = self.queue.index(max(self.queue, key=lambda x: x[0]))
+                maxState = self.queue.pop(maxLocation)[1]
+                newKey = self.__keygen(maxState.cameras)
+                self.dict.pop(newKey)
+    def pop(self):
+        state = self.queue.pop()[1]
+        key = ""
+        for camera in state.cameras:
+            key += ''.join(str(x) for x in camera.position)
+            key += ':'
+        self.dict.pop(key)
+        return state
+    def length(self):
+        return len(self.queue)
 
 
 #a unique queue that doesnt allow duplicate states
@@ -176,6 +222,51 @@ class UniqueCameraQueue:
         self.dict.pop(key)
         return state
 
+#Beam Search
+class BeamSearch:
+    def __init__(self, map, cameras, beam_width):
+        self.best_achievement = map.total_priority
+        self.best_setup = cameras
+        self.cameras = cameras
+        self.map = map
+        self.width = beam_width
+
+    def start_bfs(self):
+        inistate = State(self.map, self.cameras)
+        queue = BeamSearchQueue(self.width)
+
+        evaluator = Evaluator()
+        iniAch = evaluator.evaluate(inistate)[0]
+        queue.push(inistate, iniAch)
+        iterationCount = 0
+        printThreshold = 0
+        while queue.length() > 0:
+            iterationCount +=1
+            if iterationCount > printThreshold:
+                print("iteration Cout: " + str(iterationCount))
+                printThreshold += 100
+            current = queue.pop()
+
+
+            for i in range(0, len(self.cameras)):
+                nextState = current.move_camera(i)
+
+                if nextState != 0:
+                    result = evaluator.evaluate(nextState)
+                    if result[0] == 0:
+                        return result
+                    if result[0] < self.best_achievement:
+                        self.best_achievement = result[0]
+                        self.best_setup = result[1]
+                        print("new best: ", str(self.best_achievement))
+                        print("setup: ", str(','.join((str(x) for x in self.best_setup))))
+                    queue.push(nextState, result[0])
+                    # print("Child:" + str(' '.join(str(camera) for camera in nextState.cameras)))
+                if nextState == 0:
+                    # print(len(stack))
+                    pass
+        print('bfs complete!')
+        return [self.best_achievement, self.best_setup]
 
 
 #bfs with unique queue
@@ -337,8 +428,32 @@ def Test():
 
 def main():
     #initialize map
-    test1()
+    BeamSearchTest()
 
+def complex_setup():
+    map = Map([50,50])
+    map.set_cell([10, 7], [1, True])
+    map.set_cell([1, 7], [1, True])
+    map.set_cell([1, 7], [1, True])
+    map.set_cell([1, 7], [1, True])
+    map.set_cell([1, 7], [1, True])
+    map.set_cell([1, 7], [1, True])
+    map.set_cell([1, 7], [1, True])
+    map.set_cell([1, 7], [1, True])
+    map.set_cell([1, 7], [1, True])
+
+
+def BeamSearchTest():
+    map = Map([9, 9])
+    map.set_cell([1, 7], [1, False])
+    map.set_cell([4, 6], [0, True])
+    map.set_cell([4, 4], [1, False])
+    map.set_cell([2, 3], [1, False])
+
+    cameras = [Camera([0, 0], 0), Camera([0, 0], 0), Camera([0, 0], 0), Camera([0, 0], 0)]
+    bfs = BeamSearch(map, cameras, 15)
+    result = bfs.start_bfs()
+    print("Final Result: ", result[0])
 def test1():
     map = Map([5, 5])
     map.set_cell([1, 1], [1, False])
