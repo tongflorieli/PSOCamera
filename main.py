@@ -465,7 +465,8 @@ def BeamSearchTest():
     bfs = BeamSearch(setup[0], setup[1], 10)
     result = bfs.start_bfs()
     print("Final Result: ", result[0])
-def test1():
+
+def DFSTest():
     map = Map([5, 5])
     map.set_cell([1, 1], [1, False])
     map.set_cell([2, 2], [1, False])
