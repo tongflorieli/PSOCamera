@@ -1,15 +1,20 @@
 import copy
+import numpy as np
 
 class Map:
     def __init__(self, dimention):
         "dimention is a length 2 array"
         self.dimention = dimention
-        self.map = [[[0, False]for i in range(dimention[0])] for j in range(dimention[1])]
+        self.grid = [[[0, False]for i in range(dimention[0])] for j in range(dimention[1])]
         self.total_priority = 0
 
     def set_cell(self,position, value = [0,False]):
-        self.map[position[0]][position[1]] = value
+        self.grid[position[0]][position[1]] = value
         self.total_priority += value[0]
+
+    def __str__(self):
+        return ('\n'.join([''.join(['{:4}'.format(item[0]) for item in row])
+                         for row in self.grid]))
 
 class Camera:
     def __init__(self, position, orientation = 0):
@@ -31,11 +36,13 @@ class State:
         if position[0] >= dimention[0] - 1:
             position[0] = 0
             position[1] += 1
+            return State(self.map, new_cams)
         elif position[0] >= dimention[0] - 1 and position[1] >= dimention[1] - 1:
             #reached the end
             return 0
         else:
             position[0] += 1
+            #print(*new_cams)
             return State(self.map, new_cams)
 
 class Evaluator:
@@ -44,7 +51,7 @@ class Evaluator:
 
     def evaluate(self, state):
         current_best = [9999999,0]
-        self.compute_min_achievement(state.cameras, state.map, current_best)
+        self.compute_min_achievement(copy.deepcopy(state.cameras), state.map, current_best)
         return current_best
 
     def compute_min_achievement(self, cameras, map, current_best, depth = 0):
@@ -66,8 +73,8 @@ class Evaluator:
         local_map = copy.deepcopy(map)
         achievement = 0
         for camera in cameras:
-            self.camera_visibility_model(camera, map)
-        for i in local_map:
+            self.camera_visibility_model(camera, local_map)
+        for i in local_map.grid:
             for j in i:
                 if j[0] > 0:
                     achievement += j[0]
@@ -75,8 +82,27 @@ class Evaluator:
         return achievement
 
     def camera_visibility_model(self, camera, map):
-        return "TODO"
+        temp_position = copy.deepcopy(camera.position)
+        if  camera.orientation == 0:
+            while temp_position[0] - 1  >= 0:
+                map.grid[temp_position[0]-1][temp_position[1]][0] -=1
+                temp_position[0] -= 1
 
+        if  camera.orientation == 1:
+            while temp_position[1] - 1  >= 0:
+                map.grid[temp_position[0]][temp_position[1] -1][0] -=1
+                temp_position[1] -= 1
+
+        if  camera.orientation == 2:
+            while temp_position[0] + 1  < len(map.grid) -1:
+                map.grid[temp_position[0]+1][temp_position[1]][0] -=1
+                temp_position[0] += 1
+
+        if  camera.orientation == 3:
+            while temp_position[1] + 1  < len(map.grid[0]) -1:
+                map.grid[temp_position[0]][temp_position[1] -1][0] -=1
+                temp_position[1] += 1
+        # print(camera, map)
 class BFS:
     def __init__(self, map, cameras):
         self.best_achievement = map.total_priority
@@ -100,7 +126,7 @@ class BFS:
                 if nextState != 0:
                     stack.insert(0, nextState)
         print('bfs complete!')
-        return
+        return [self.best_achievement, self.best_setup]
 def Test():
     print("1234")
 
@@ -109,5 +135,18 @@ def Test():
     evaluator = Evaluator()
     evaluator.compute_min_achievement(cameras, None,0)
 
+def main():
+    map = Map([3,3])
+    map.set_cell([1,2],[1,False])
+    cameras = [Camera([0,0]), Camera([0,0])]
+    # state = State(map,cameras)
 
-Test()
+
+
+    bfs = BFS(map,cameras)
+    result = bfs.start_bfs()
+    print(result[0])
+    print(map)
+
+if __name__ == '__main__':
+    main()
