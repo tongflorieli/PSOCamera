@@ -133,8 +133,15 @@ class Evaluator:
 class BeamSearchQueue:
     def __init__(self, size):
         self.size = size
-        self.priorityQueue = []
+        self.queue = []
         self.dict = {}
+
+    def __keygen(self, cameras):
+        key = ""
+        for camera in cameras:
+            key += ''.join(str(x) for x in camera.position)
+            key += ':'
+        return key
 
     def push(self, state, achievement):
         key = ""
@@ -145,7 +152,22 @@ class BeamSearchQueue:
             return
         else:
             self.dict.update({key: state})
-            self.queue.insert(0, state)
+            self.queue.insert(0, (achievement,state))
+            if len(self.queue) > self.size:
+                maxLocation = self.queue.index(max(self.queue, key=lambda x: x[0]))
+                maxState = self.queue.pop(maxLocation)[1]
+                newKey = self.__keygen(maxState.cameras)
+                self.dict.pop(newKey)
+    def pop(self):
+        state = self.queue.pop()[1]
+        key = ""
+        for camera in state.cameras:
+            key += ''.join(str(x) for x in camera.position)
+            key += ':'
+        self.dict.pop(key)
+        return state
+    def length(self):
+        return len(self.queue)
 
 
 #a unique queue that doesnt allow duplicate states
@@ -175,6 +197,52 @@ class UniqueCameraQueue:
             key += ':'
         self.dict.pop(key)
         return state
+
+#Beam Search
+class BeamSearch:
+    def __init__(self, map, cameras):
+        self.best_achievement = map.total_priority
+        self.best_setup = cameras
+        self.cameras = cameras
+        self.map = map
+
+    def start_bfs(self):
+        inistate = State(self.map, self.cameras)
+        queue = BeamSearchQueue(5)
+
+        evaluator = Evaluator()
+        iniAch = evaluator.evaluate(inistate)[0]
+        queue.push(inistate, iniAch)
+        iterationCount = 0
+        printThreshold = 0
+        while queue.length() > 0:
+            iterationCount +=1
+            if iterationCount > printThreshold:
+                print("iteration Cout: " + str(iterationCount))
+                printThreshold += 100
+            current = queue.pop()
+
+
+            for i in range(0, len(self.cameras)):
+                nextState = current.move_camera(i)
+
+                if nextState != 0:
+                    result = evaluator.evaluate(nextState)
+                    if result[0] == 0:
+                        return result
+                    if result[0] < self.best_achievement:
+                        self.best_achievement = result[0]
+                        self.best_setup = result[1]
+                        print("new best: ", str(self.best_achievement))
+                        print("setup: ", str(','.join((str(x) for x in self.best_setup))))
+                    queue.push(nextState, result[0])
+                    # print("Child:" + str(' '.join(str(camera) for camera in nextState.cameras)))
+                if nextState == 0:
+                    # print(len(stack))
+                    pass
+        print('bfs complete!')
+        return [self.best_achievement, self.best_setup]
+
 
 #bfs with unique queue
 class BFSWithNonDupQueue:
@@ -288,7 +356,7 @@ def test1():
     # initialize camera
     cameras = [Camera([0, 0], 0), Camera([0, 0], 0), Camera([0, 0], 0), Camera([0, 0], 0)]
 
-    bfs = BFSWithNonDupQueue(map, cameras)
+    bfs = BeamSearch(map, cameras)
     result = bfs.start_bfs()
     print(result[0])
     print(*result[1])
