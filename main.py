@@ -1,5 +1,5 @@
 import copy
-import numpy as np
+# import numpy as np
 import time
 
 class Map:
@@ -62,7 +62,7 @@ class Evaluator:
 
             achievement = self.compute_achievement(cameras, map)
             #print(*cameras)
-            print("value" + str(achievement))
+
             if achievement < current_best[0]:
                 return [achievement, copy.deepcopy(cameras)]
 
@@ -99,28 +99,103 @@ class Evaluator:
         temp_position = copy.deepcopy(camera.position)
         if camera.orientation == 0:
             while temp_position[0] - 1 >= 0:
+                if map.grid[temp_position[0]-1][temp_position[1]][1] == 1:
+                    return
                 map.grid[temp_position[0]-1][temp_position[1]][0] -=1
                 temp_position[0] -= 1
 
         if  camera.orientation == 1:
             while temp_position[1] - 1 >= 0:
+                if map.grid[temp_position[0]][temp_position[1] -1][1] == 1:
+                    return
                 map.grid[temp_position[0]][temp_position[1] -1][0] -=1
                 temp_position[1] -= 1
 
         if  camera.orientation == 2:
             while temp_position[0] + 1 <= len(map.grid) -1:
-                try:
-                    map.grid[temp_position[0]+1][temp_position[1]][0] -=1
-                except Exception as e:
-                    print(e)
-
+                if map.grid[temp_position[0]+1][temp_position[1]][1] == 1:
+                    return
+                map.grid[temp_position[0]+1][temp_position[1]][0] -=1
                 temp_position[0] += 1
 
         if  camera.orientation == 3:
             while temp_position[1] + 1  <= len(map.grid[0]) -1:
+                if map.grid[temp_position[0]][temp_position[1] +1][1] == 1:
+                    return
                 map.grid[temp_position[0]][temp_position[1] +1][0] -=1
                 temp_position[1] += 1
         # print(camera, map)
+
+class UniqueCameraQueue:
+    def __init__(self):
+        self.queue = []
+        self.dict = {}
+
+    def push(self, state):
+        key = ""
+        for camera in state.cameras:
+            key += ''.join(str(x) for x in camera.position)
+        if key in self.dict:
+            return
+        else:
+            self.dict.update({key: state})
+            self.queue.insert(0, state)
+    def length(self):
+        return len(self.queue)
+
+    def pop(self):
+        state = self.queue.pop()
+        key = ""
+        for camera in state.cameras:
+            key += ''.join(str(x) for x in camera.position)
+        self.dict.pop(key)
+        return state
+
+class BFSWithNonDupQueue:
+    def __init__(self, map, cameras):
+        self.best_achievement = map.total_priority
+        self.best_setup = cameras
+        self.cameras = cameras
+        self.map = map
+    #BFS with stack
+    def start_bfs(self):
+        inistate = State(self.map, self.cameras)
+        queue = UniqueCameraQueue()
+        queue.push(inistate)
+        evaluator = Evaluator()
+        printThreshold = 0
+        while queue.length() > 0:
+
+            if queue.length() > printThreshold:
+                printThreshold += 100
+                print("queue lenghth: " + str(queue.length()))
+            current = queue.pop()
+            # print("12345111111111111111111111111111111111111111111111111111111111111111111111111111111")
+            # print('\n'.join([''.join([str(camera) for camera in state.cameras])
+            #              for state in stack]))
+            # print("Parent:" + str(' '.join(str(camera) for camera in current.cameras)))
+
+            result = evaluator.evaluate(current)
+            if result[0] == 0:
+                return result
+
+            if result[0] < self.best_achievement:
+                self.best_achievement = result[0]
+                self.best_setup = result[1]
+                print("new best: " + str(self.best_achievement))
+            for i in range(0, len(self.cameras)):
+                nextState = current.move_camera(i)
+
+                if nextState != 0:
+                    queue.push(nextState)
+                    # print("Child:" + str(' '.join(str(camera) for camera in nextState.cameras)))
+                if nextState == 0:
+                    # print(len(stack))
+                    pass
+        print('bfs complete!')
+        return [self.best_achievement, self.best_setup]
+
+
 class BFS:
     def __init__(self, map, cameras):
         self.best_achievement = map.total_priority
@@ -143,7 +218,7 @@ class BFS:
             result = evaluator.evaluate(current)
             if result[0] == 0:
                 return result
-            print(result[0])
+
             if result[0] < self.best_achievement:
                 self.best_achievement = result[0]
                 self.best_setup = result[1]
@@ -158,6 +233,8 @@ class BFS:
                     pass
         print('bfs complete!')
         return [self.best_achievement, self.best_setup]
+
+
 def Test():
     print("1234")
 
@@ -179,10 +256,12 @@ def main():
     # current_b = [9999,0]
     # value = eval.compute_min_achievement(cameras, map, current_b)
     # print("res = " + str(value))
-    bfs = BFS(map,cameras)
+    bfs = BFSWithNonDupQueue(map,cameras)
     result = bfs.start_bfs()
     print(result[0])
     print(map)
+
+
 
 if __name__ == '__main__':
     start = time.time()
