@@ -200,15 +200,16 @@ class UniqueCameraQueue:
 
 #Beam Search
 class BeamSearch:
-    def __init__(self, map, cameras):
+    def __init__(self, map, cameras, beam_width):
         self.best_achievement = map.total_priority
         self.best_setup = cameras
         self.cameras = cameras
         self.map = map
+        self.width = beam_width
 
     def start_bfs(self):
         inistate = State(self.map, self.cameras)
-        queue = BeamSearchQueue(5)
+        queue = BeamSearchQueue(self.width)
 
         evaluator = Evaluator()
         iniAch = evaluator.evaluate(inistate)[0]
@@ -341,24 +342,19 @@ def Test():
 
 def main():
     #initialize map
-    test1()
+    BeamSearchTest()
 
-def test1():
+def BeamSearchTest():
     map = Map([9, 9])
     map.set_cell([1, 7], [1, False])
     map.set_cell([4, 6], [0, True])
     map.set_cell([4, 4], [1, False])
     map.set_cell([2, 3], [1, False])
     map.set_cell([4, 7], [1, False])
-    # map.set_cell([2, 2], [1, False])
-    # map.set_cell([3, 3], [1, False])
-    # map.set_cell([4, 3], [1, False])
-    # initialize camera
     cameras = [Camera([0, 0], 0), Camera([0, 0], 0), Camera([0, 0], 0), Camera([0, 0], 0)]
-
-    bfs = BeamSearch(map, cameras)
+    bfs = BeamSearch(map, cameras, 2)
     result = bfs.start_bfs()
-    print(result[0])
+    print("Final Result: ", result[0])
     print(*result[1])
 
 
