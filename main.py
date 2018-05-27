@@ -2,6 +2,7 @@ import copy
 # import numpy as np
 import time
 
+
 class Map:
     def __init__(self, dimention):
         "dimention is a length 2 array"
@@ -29,7 +30,7 @@ class State:
     def __init__(self, map, cameras):
         self.map = map
         self.cameras = cameras
-
+    #next state is defined by moving 1 camera by 1 position
     def move_camera(self, camera_num):
         new_cams = copy.deepcopy(self.cameras)
         position = new_cams[camera_num].position
@@ -48,6 +49,7 @@ class State:
             # print(*new_cams)
             return State(self.map, new_cams)
 
+#evaluate the achievement of 1 state
 class Evaluator:
     def __init__(self):
         self.hi = "hi"
@@ -57,6 +59,7 @@ class Evaluator:
         value = self.compute_min_achievement(copy.deepcopy(state.cameras), state.map, current_best)
         return value
 
+    #compute achievement for all possible camera orientation setup and find minimum achievement
     def compute_min_achievement(self, cameras, map, current_best, depth = 0):
         if depth >= len(cameras):
 
@@ -79,7 +82,7 @@ class Evaluator:
             return temp
 
 
-
+    #computed achievement for 1 camera orientation setup
     def compute_achievement(self, cameras, map):
         local_map = copy.deepcopy(map)
         achievement = 0
@@ -95,37 +98,57 @@ class Evaluator:
 
         return achievement
 
+    #visibility model for camera, currently assume that a camera will look straitght as far as it can until it reaches a wall
     def camera_visibility_model(self, camera, map):
         temp_position = copy.deepcopy(camera.position)
         if camera.orientation == 0:
             while temp_position[0] - 1 >= 0:
-                if map.grid[temp_position[0]-1][temp_position[1]][1] == 1:
+                if map.grid[temp_position[0]-1][temp_position[1]][1] :
                     return
                 map.grid[temp_position[0]-1][temp_position[1]][0] -=1
                 temp_position[0] -= 1
 
         if  camera.orientation == 1:
             while temp_position[1] - 1 >= 0:
-                if map.grid[temp_position[0]][temp_position[1] -1][1] == 1:
+                if map.grid[temp_position[0]][temp_position[1] -1][1] :
                     return
                 map.grid[temp_position[0]][temp_position[1] -1][0] -=1
                 temp_position[1] -= 1
 
         if  camera.orientation == 2:
             while temp_position[0] + 1 <= len(map.grid) -1:
-                if map.grid[temp_position[0]+1][temp_position[1]][1] == 1:
+                if map.grid[temp_position[0]+1][temp_position[1]][1] :
                     return
                 map.grid[temp_position[0]+1][temp_position[1]][0] -=1
                 temp_position[0] += 1
 
         if  camera.orientation == 3:
             while temp_position[1] + 1  <= len(map.grid[0]) -1:
-                if map.grid[temp_position[0]][temp_position[1] +1][1] == 1:
+                if map.grid[temp_position[0]][temp_position[1] +1][1] :
                     return
                 map.grid[temp_position[0]][temp_position[1] +1][0] -=1
                 temp_position[1] += 1
         # print(camera, map)
 
+class BeamSearchQueue:
+    def __init__(self, size):
+        self.size = size
+        self.priorityQueue = []
+        self.dict = {}
+
+    def push(self, state, achievement):
+        key = ""
+        for camera in state.cameras:
+            key += ''.join(str(x) for x in camera.position)
+            key += ':'
+        if key in self.dict:
+            return
+        else:
+            self.dict.update({key: state})
+            self.queue.insert(0, state)
+
+
+#a unique queue that doesnt allow duplicate states
 class UniqueCameraQueue:
     def __init__(self):
         self.queue = []
@@ -135,6 +158,7 @@ class UniqueCameraQueue:
         key = ""
         for camera in state.cameras:
             key += ''.join(str(x) for x in camera.position)
+            key += ':'
         if key in self.dict:
             return
         else:
@@ -148,9 +172,11 @@ class UniqueCameraQueue:
         key = ""
         for camera in state.cameras:
             key += ''.join(str(x) for x in camera.position)
+            key += ':'
         self.dict.pop(key)
         return state
 
+#bfs with unique queue
 class BFSWithNonDupQueue:
     def __init__(self, map, cameras):
         self.best_achievement = map.total_priority
@@ -196,6 +222,8 @@ class BFSWithNonDupQueue:
         return [self.best_achievement, self.best_setup]
 
 
+
+# classic bfs with queue
 class BFS:
     def __init__(self, map, cameras):
         self.best_achievement = map.total_priority
@@ -244,23 +272,26 @@ def Test():
     evaluator.compute_min_achievement(cameras, None,0)
 
 def main():
-    map = Map([10, 10])
-    map.set_cell([1,1],[1,False])
-    map.set_cell([5, 5], [1, False])
-    map.set_cell([8, 2], [1, False])
-    map.set_cell([7, 4], [1, False])
-    cameras = [Camera([0,0],0),Camera([0,0],0),Camera([0,0],0),Camera([0,0],0),]
-    # state = State(map,cameras)
-    eval = Evaluator()
-    # value = eval.evaluate(state)
-    # current_b = [9999,0]
-    # value = eval.compute_min_achievement(cameras, map, current_b)
-    # print("res = " + str(value))
-    bfs = BFSWithNonDupQueue(map,cameras)
+    #initialize map
+    test1()
+
+def test1():
+    map = Map([9, 9])
+    map.set_cell([1, 7], [1, False])
+    map.set_cell([4, 6], [0, True])
+    map.set_cell([4, 4], [1, False])
+    map.set_cell([2, 3], [1, False])
+    map.set_cell([4, 7], [1, False])
+    # map.set_cell([2, 2], [1, False])
+    # map.set_cell([3, 3], [1, False])
+    # map.set_cell([4, 3], [1, False])
+    # initialize camera
+    cameras = [Camera([0, 0], 0), Camera([0, 0], 0), Camera([0, 0], 0), Camera([0, 0], 0)]
+
+    bfs = BFSWithNonDupQueue(map, cameras)
     result = bfs.start_bfs()
     print(result[0])
-    print(map)
-
+    print(*result[1])
 
 
 if __name__ == '__main__':
