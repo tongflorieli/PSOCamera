@@ -176,6 +176,8 @@ class UniqueCameraQueue:
         self.dict.pop(key)
         return state
 
+
+
 #bfs with unique queue
 class BFSWithNonDupQueue:
     def __init__(self, map, cameras):
@@ -221,6 +223,67 @@ class BFSWithNonDupQueue:
         print('bfs complete!')
         return [self.best_achievement, self.best_setup]
 
+class DFS:
+    def __init__(self, map, cameras):
+        self.best_achievement = map.total_priority
+        self.best_setup = cameras
+        self.cameras = cameras
+        self.map = map
+        self.visited_dict = {}
+
+    def start(self):
+        init_state = State(self.map, self.cameras)
+        stack = []
+        stack.append(init_state)
+        eval = Evaluator()
+        current_state = init_state
+        camera_num = 0
+
+        traceback = False
+        traceback_camera_num = 0
+
+        while len(stack) > 0:
+            while True:
+                # not re-evaluate when tracing back from next node
+                next_state = None
+                if not traceback:
+                    result = eval.evaluate(current_state)
+                    if result[0] == 0:
+                        return result
+
+                    if result[0] < self.best_achievement:
+                        self.best_achievement = result[0]
+                        self.best_setup = result[1]
+
+                    self.visited_dict[self.get_key(current_state)] = True
+                    next_state = current_state.move_camera(camera_num)
+                else:
+                    # find if any node is not yet traversed
+                    for i in range(0, len(self.cameras)):
+                        next_state = current_state.move_camera(i)
+                        if next_state != 0 and self.get_key(next_state) not in self.visited_dict:
+                            camera_num = i
+                            traceback = False
+                            break
+
+                if next_state == 0 or traceback is True:
+                    # print("###########################Trace back by 1 #####################################")
+                    current_state = stack.pop()
+                    traceback = True
+                    # print("Pop node:" + str(' '.join(str(camera) for camera in current_state.cameras)))
+                    break
+                else:
+                    # print("Pushing Child:" + str(' '.join(str(camera) for camera in next_state.cameras)))
+                    stack.append(next_state)
+                    current_state = next_state
+
+    def get_key(self, state):
+        key = ''
+        for camera in state.cameras:
+            key += ''.join(str(x) for x in camera.position)
+            key += ':'
+        return key
+
 
 
 # classic bfs with queue
@@ -230,6 +293,7 @@ class BFS:
         self.best_setup = cameras
         self.cameras = cameras
         self.map = map
+
     #BFS with stack
     def start_bfs(self):
         inistate = State(self.map, self.cameras)
@@ -276,20 +340,27 @@ def main():
     test1()
 
 def test1():
-    map = Map([9, 9])
-    map.set_cell([1, 7], [1, False])
-    map.set_cell([4, 6], [0, True])
-    map.set_cell([4, 4], [1, False])
-    map.set_cell([2, 3], [1, False])
-    map.set_cell([4, 7], [1, False])
+    map = Map([5, 5])
+    map.set_cell([1, 1], [1, False])
+    map.set_cell([2, 2], [1, False])
+    map.set_cell([3, 3], [1, False])
+    # map.set_cell([4, 6], [0, True])
+    # map.set_cell([4, 4], [1, False])
+    # map.set_cell([2, 3], [1, False])
+    # map.set_cell([4, 7], [1, False])
     # map.set_cell([2, 2], [1, False])
     # map.set_cell([3, 3], [1, False])
     # map.set_cell([4, 3], [1, False])
     # initialize camera
-    cameras = [Camera([0, 0], 0), Camera([0, 0], 0), Camera([0, 0], 0), Camera([0, 0], 0)]
+    cameras = [Camera([0, 0], 0), Camera([0, 0], 0),Camera([0, 0], 0)]
 
-    bfs = BFSWithNonDupQueue(map, cameras)
-    result = bfs.start_bfs()
+    # bfs = BFSWithNonDupQueue(map, cameras)
+    # result = bfs.start_bfs()
+    # print(result[0])
+    # print(*result[1])
+
+    dfs = DFS(map, cameras)
+    result = dfs.start()
     print(result[0])
     print(*result[1])
 
