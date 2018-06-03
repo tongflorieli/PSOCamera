@@ -262,7 +262,7 @@ class CandiList:
                     temp_ach = Evaluator().compute_achievement(temp_cams, self.map)
                     self.List[(num_cam - 1) * 16 + j -1].del_ach = temp_ach - cur_ach
                 else:
-                    self.List[(num_cam - 1) * 16 + j - 1].del_ach = -1000
+                    self.List[(num_cam - 1) * 16 + j - 1].del_ach = 1000
 
         #sort list by delta ach
         # self.List.sort(key=lambda x: x.add.position[1], reverse=True)
