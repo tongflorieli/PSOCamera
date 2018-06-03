@@ -24,6 +24,10 @@ class Camera:
         self.position = position
         self.orientation = orientation
         self.valid_direction = []
+
+    def set_dir(self, dir):
+        self.orientation = dir
+
     def __str__(self):
         return "[{}, {}]".format(self.position, self.orientation)
 
@@ -31,6 +35,13 @@ class State:
     def __init__(self, map, cameras):
         self.map = map
         self.cameras = cameras
+        self.ach = -1000
+    def update_cams(self, add, delete):
+        for z in range(len(self.cameras)):
+            if self.cameras[z] == delete:
+                self.cameras[z] = add
+                return True
+        return False
     #next state is defined by moving 1 camera by 1 position
     def move_camera(self, camera_num):
         new_cams = copy.deepcopy(self.cameras)
@@ -55,26 +66,6 @@ class Evaluator:
     def __init__(self):
         self.hi = "hi"
 
-    def evaluate(self, state):
-        current_best = [9999999,0]
-        local_cam = copy.deepcopy(state.cameras)
-        self.check_valid_direction(local_cam, state.map)
-        local_cam = [cam for cam in local_cam if len(cam.valid_direction) > 0]
-        local_cam = self.filter_same_position(local_cam)
-        if len(local_cam)> 0:
-            current_best = self.compute_min_achievement(local_cam, state.map, current_best)
-        return current_best
-
-    def filter_same_position(self, cameras):
-        output = []
-        seen = set()
-        for camera in cameras:
-            key = ''.join(str(x) for x in camera.position)
-            if key not in seen:
-                output.append(camera)
-                seen.add(key)
-        return output
-
     def check_valid_direction(self, cameras, map):
 
         # print(local_map)
@@ -95,34 +86,10 @@ class Evaluator:
         #print(*cameras)
 
 
-    #compute achievement for all possible camera orientation setup and find minimum achievement
-    def compute_min_achievement(self, cameras, map, current_best, depth = 0):
-        if depth >= len(cameras):
-
-            achievement = self.compute_achievement(cameras, map)
-            #print(*cameras)
-
-            if achievement < current_best[0]:
-                return [achievement, copy.deepcopy(cameras)]
-
-
-
-        else:
-            temp = current_best
-            while cameras[depth].orientation <= 3:
-                new_cameras = copy.deepcopy(cameras)
-                ach = self.compute_min_achievement(new_cameras, map, current_best, depth + 1)
-                if ach[0] < temp[0]:
-                    temp = ach
-                cameras[depth].orientation += 1
-            return temp
-
-
     #computed achievement for 1 camera orientation setup
     def compute_achievement(self, cameras, map):
         local_map = copy.deepcopy(map)
         achievement = 0
-        # print(local_map)
         for camera in cameras:
             self.camera_visibility_model(camera, local_map)
 
@@ -151,88 +118,20 @@ class Evaluator:
                 map.grid[temp_position[0]][temp_position[1] -1][0] -=1
                 temp_position[1] -= 1
 
-        if  camera.orientation == 2:
+        if camera.orientation == 2:
             while temp_position[0] + 1 <= len(map.grid) -1:
                 if map.grid[temp_position[0]+1][temp_position[1]][1] :
                     return
                 map.grid[temp_position[0]+1][temp_position[1]][0] -=1
                 temp_position[0] += 1
 
-        if  camera.orientation == 3:
+        if camera.orientation == 3:
             while temp_position[1] + 1  <= len(map.grid[0]) -1:
-                if map.grid[temp_position[0]][temp_position[1] +1][1] :
+                if map.grid[temp_position[0]][temp_position[1] +1][1]:
                     return
                 map.grid[temp_position[0]][temp_position[1] +1][0] -=1
                 temp_position[1] += 1
         # print(camera, map)
-
-class BeamSearchQueue:
-    def __init__(self, size):
-        self.size = size
-        self.queue = []
-        self.dict = {}
-
-    def __keygen(self, cameras):
-        key = ""
-        for camera in cameras:
-            key += ''.join(str(x) for x in camera.position)
-            key += ':'
-        return key
-
-    def push(self, state, achievement):
-        key = ""
-        for camera in state.cameras:
-            key += ''.join(str(x) for x in camera.position)
-            key += ':'
-        if key in self.dict:
-            return
-        else:
-            self.dict.update({key: state})
-            self.queue.insert(0, (achievement,state))
-            if len(self.queue) > self.size:
-                maxLocation = self.queue.index(max(self.queue, key=lambda x: x[0]))
-                maxState = self.queue.pop(maxLocation)[1]
-                newKey = self.__keygen(maxState.cameras)
-                self.dict.pop(newKey)
-    def pop(self):
-        state = self.queue.pop()[1]
-        key = ""
-        for camera in state.cameras:
-            key += ''.join(str(x) for x in camera.position)
-            key += ':'
-        self.dict.pop(key)
-        return state
-    def length(self):
-        return len(self.queue)
-
-
-#a unique queue that doesnt allow duplicate states
-class UniqueCameraQueue:
-    def __init__(self):
-        self.queue = []
-        self.dict = {}
-
-    def push(self, state):
-        key = ""
-        for camera in state.cameras:
-            key += ''.join(str(x) for x in camera.position)
-            key += ':'
-        if key in self.dict:
-            return
-        else:
-            self.dict.update({key: state})
-            self.queue.insert(0, state)
-    def length(self):
-        return len(self.queue)
-
-    def pop(self):
-        state = self.queue.pop()
-        key = ""
-        for camera in state.cameras:
-            key += ''.join(str(x) for x in camera.position)
-            key += ':'
-        self.dict.pop(key)
-        return state
 
 #Beam Search
 class BeamSearch:
@@ -243,204 +142,188 @@ class BeamSearch:
         self.map = map
         self.width = beam_width
 
-    def start_bfs(self):
-        inistate = State(self.map, self.cameras)
-        queue = BeamSearchQueue(self.width)
-
-        evaluator = Evaluator()
-        iniAch = evaluator.evaluate(inistate)[0]
-        queue.push(inistate, iniAch)
-        iterationCount = 0
-        printThreshold = 0
-        while queue.length() > 0:
-            iterationCount +=1
-            if iterationCount > printThreshold:
-                print("iteration Cout: " + str(iterationCount))
-                printThreshold += 10
-            current = queue.pop()
-
-
-            for i in range(0, len(self.cameras)):
-                nextState = current.move_camera(i)
-
-                if nextState != 0:
-                    result = evaluator.evaluate(nextState)
-                    if result[0] == 0:
-                        return result
-                    if result[0] < self.best_achievement:
-                        self.best_achievement = result[0]
-                        self.best_setup = result[1]
-                        print("new best: ", str(self.best_achievement))
-                        print("setup: ", str(','.join((str(x) for x in self.best_setup))))
-                    queue.push(nextState, result[0])
-                    # print("Child:" + str(' '.join(str(camera) for camera in nextState.cameras)))
-                if nextState == 0:
-                    # print(len(stack))
-                    pass
-        print('bfs complete!')
-        return [self.best_achievement, self.best_setup]
-
-
-#bfs with unique queue
-class BFSWithNonDupQueue:
+class TabuSearch:
     def __init__(self, map, cameras):
-        self.best_achievement = map.total_priority
-        self.best_setup = cameras
-        self.cameras = cameras
         self.map = map
-    #BFS with stack
-    def start_bfs(self):
-        inistate = State(self.map, self.cameras)
-        queue = UniqueCameraQueue()
-        queue.push(inistate)
-        evaluator = Evaluator()
-        printThreshold = 0
-        while queue.length() > 0:
+        self.cams = cameras
+        self.CandiList = CandiList(cameras, map)
+        map_size = map.dimention[0]
+        self.ListTTL = ListTTL(map_size)
+        self.improve_limit = 10000
+        self.iteration_limit = 1000
 
-            if queue.length() > printThreshold:
-                printThreshold += 100
-                print("queue lenghth: " + str(queue.length()))
-            current = queue.pop()
-            # print("12345111111111111111111111111111111111111111111111111111111111111111111111111111111")
-            # print('\n'.join([''.join([str(camera) for camera in state.cameras])
-            #              for state in stack]))
-            # print("Parent:" + str(' '.join(str(camera) for camera in current.cameras)))
+    def start_tabu(self):
+        cur_state = State(self.map, self.cams)
+        eva = Evaluator()
+        cur_state.ach = eva.compute_achievement(self.cams, self.map)
+        best_state = cur_state
+        best_state.ach = 1000
+        impro_count = 0
+        iterat_count = 0
 
-            result = evaluator.evaluate(current)
-            if result[0] == 0:
-                return result
+        #compute candidate list
+        while(1):
+            self.CandiList.comp_list(cur_state.ach)
+            print("cur ach value: ", cur_state.ach)
+            iterat_count += 1
+            element_index = 0
+            for candi in self.CandiList.List:
+                element_index += 1
+                #check if the candi is tabuted
+                if self.ListTTL.check_tabuted(candi.add, candi.delete):
+                    a = "a"
+                elif candi.del_ach > -1000:
+                    #update current state to the candi
+                    cur_state.ach += candi.del_ach
+                    result = cur_state.update_cams(candi.add, candi.delete)
+                    print(result)
+                    print("cam added: ", candi.add)
+                    print("cam delete: ", candi.delete)
+                    #update cur_cams in CandiList
+                    self.CandiList.cur_cams = cur_state.cameras
+                    #update best state
+                    print("cur_state.ach: ", cur_state.ach)
+                    #print cams
+                    for cam in cur_state.cameras:
+                        print(cam)
+                    if cur_state.ach < best_state.ach:
+                        best_state = cur_state
+                        impro_count = 0
+                        print(impro_count)
+                    else:
+                        impro_count += 1
+                        print(impro_count)
+                    #end if improve_limit iterations from last improvement
+                    if impro_count > self.improve_limit:
+                        print ("reach improve limit")
+                        print("iteration: ", iterat_count)
+                        print("ach: ", best_state.ach)
+                        print(best_state.map, best_state.cameras)
+                        return
+                    #update TTL list
+                    self.ListTTL.update_TTL_List(candi.add, candi.delete)
+                    break;
+                elif element_index == len(self.CandiList.List) - 1:
+                    #reached the end of candidate list, and all records are tabuted or out of bound
+                    print ("no suitable option found in candidate list")
+                    print("iteration: ", iterat_count)
+                    print(best_state.map, best_state.cameras)
+                    print("ach: ", best_state.ach)
+                    return
+            #end if ach value = 0
+            if cur_state.ach == 0:
+                print ("found the optima")
+                print("iteration: ", iterat_count)
+                print("ach: ", cur_state.ach)
+                print(cur_state.map, cur_state.cameras)
+                return
+            # end if exceeded iteration limit
+            if iterat_count > self.iteration_limit:
+                print ("exceeded iteration limit")
+                print("iteration: ", iterat_count)
+                print("ach: ",best_state.ach )
+                print(best_state.map, best_state.cameras)
+                return
 
-            if result[0] < self.best_achievement:
-                self.best_achievement = result[0]
-                self.best_setup = result[1]
-                print("new best: " + str(self.best_achievement))
-            for i in range(0, len(self.cameras)):
-                nextState = current.move_camera(i)
 
-                if nextState != 0:
-                    queue.push(nextState)
-                    # print("Child:" + str(' '.join(str(camera) for camera in nextState.cameras)))
-                if nextState == 0:
-                    # print(len(stack))
-                    pass
-        print('bfs complete!')
-        return [self.best_achievement, self.best_setup]
-
-class DFS:
-    def __init__(self, map, cameras):
-        self.best_achievement = map.total_priority
-        self.best_setup = cameras
-        self.cameras = cameras
+class CandiList:
+    def __init__(self, cur_cams, map):
+        self.List = [Candi() for i in range(16*len(cur_cams))]
         self.map = map
-        self.visited_dict = {}
+        self.cur_cams = cur_cams
 
-    def start(self):
-        init_state = State(self.map, self.cameras)
-        stack = []
-        stack.append(init_state)
-        eval = Evaluator()
-        current_state = init_state
-        camera_num = 0
+    def comp_list(self, cur_ach):
+        this_cam = Camera([0, 0], 0)
+        temp_cams = copy.deepcopy(self.cur_cams)
+        temp_ach = 0
+        for num_cam in range(0, len(self.cur_cams)):
+            for j in range(1,17):
+                this_cam = Camera([0, 0], 0)
+                if 1 <= j <= 4:
+                    this_cam = Camera([self.cur_cams[num_cam].position[0] - 1, self.cur_cams[num_cam].position[1]])
+                if 5 <= j <= 8:
+                    this_cam = Camera([self.cur_cams[num_cam].position[0], self.cur_cams[num_cam].position[1] + 1])
+                if 9 <= j <= 12:
+                    this_cam = Camera([self.cur_cams[num_cam].position[0] + 1, self.cur_cams[num_cam].position[1]])
+                if 13 <= j <= 16:
+                    this_cam = Camera([self.cur_cams[num_cam].position[0], self.cur_cams[num_cam].position[1] - 1])
+                this_cam.set_dir((j-1)%4)
 
-        traceback = False
-        traceback_camera_num = 0
+                # print("j: ", j,"cur cam pos 0:",self.cur_cams[num_cam].position[0], this_cam)
 
-        while len(stack) > 0:
-            while True:
-                # not re-evaluate when tracing back from next node
-                next_state = None
-                if not traceback:
-                    result = eval.evaluate(current_state)
-                    if result[0] == 0:
-                        return result
+                self.List[(num_cam-1)*16 + j -1].add = this_cam
+                self.List[(num_cam - 1) * 16 + j -1].delete = self.cur_cams[num_cam]
 
-                    if result[0] < self.best_achievement:
-                        self.best_achievement = result[0]
-                        self.best_setup = result[1]
+                temp_cams[num_cam] = this_cam
 
-                    self.visited_dict[self.get_key(current_state)] = True
-                    next_state = current_state.move_camera(camera_num)
+                #check cell within the map
+                if 0 <= this_cam.position[0] < self.map.dimention[0] and 0 <= this_cam.position[1] < self.map.dimention[1]:
+                    temp_ach = Evaluator().compute_achievement(temp_cams, self.map)
+                    self.List[(num_cam - 1) * 16 + j -1].del_ach = temp_ach - cur_ach
                 else:
-                    # find if any node is not yet traversed
-                    for i in range(0, len(self.cameras)):
-                        next_state = current_state.move_camera(i)
-                        if next_state != 0 and self.get_key(next_state) not in self.visited_dict:
-                            camera_num = i
-                            traceback = False
-                            break
+                    self.List[(num_cam - 1) * 16 + j - 1].del_ach = -1000
 
-                if next_state == 0 or traceback is True:
-                    # print("###########################Trace back by 1 #####################################")
-                    current_state = stack.pop()
-                    traceback = True
-                    # print("Pop node:" + str(' '.join(str(camera) for camera in current_state.cameras)))
-                    break
-                else:
-                    # print("Pushing Child:" + str(' '.join(str(camera) for camera in next_state.cameras)))
-                    stack.append(next_state)
-                    current_state = next_state
+        #sort list by delta ach
+        self.List.sort(key=lambda x: x.delete.position[1], reverse=False)
+        self.List.sort(key=lambda x : x.del_ach, reverse = True)
+        # for l in self.List:
+        #     print("add: ", l.add, "    delete: ", l.delete, "   delta ach: ", l.del_ach)
+class Candi:
+    def __init__(self):
+        self.del_ach = -1000
+        self.add = Camera([0,0],0)
+        self.delete = Camera([0, 0], 0)
 
-    def get_key(self, state):
-        key = ''
-        for camera in state.cameras:
-            key += ''.join(str(x) for x in camera.position)
-            key += ':'
-        return key
+class ListTTL:
+    def __init__(self, size):
+        cam = Camera([0,0],0)
+        cam1 = Camera([0,0],0)
+        record_ttl = RecordTTL(cam,cam1,0)
+        self.List = [copy.deepcopy(record_ttl) for j in range(size)]
+        self.size = size
+        for a in self.List:
+            a.cam1 = Camera([0,0],0)
+            a.cam2 = Camera([0, 0], 0)
+            a.TTL = 0
 
+    #check if cam1 position and cam2 position can be switch places
+    def check_tabuted(self, cam1, cam2):
+        print("check tabuted cam1 ",cam1,"  cam2  ",cam2)
+        for e in self.List:
+            if e.cam1.position == cam1.position and e.cam2.position == cam2.position:
+                print("tabuted return true")
+                return True
+            elif e.cam2.position == cam1.position and e.cam1.position == cam2.position:
+                print("tabuted return true")
+                return True
+        print("tabuted return false")
+        return False
 
-
-# classic bfs with queue
-class BFS:
-    def __init__(self, map, cameras):
-        self.best_achievement = map.total_priority
-        self.best_setup = cameras
-        self.cameras = cameras
-        self.map = map
-
-    #BFS with stack
-    def start_bfs(self):
-        inistate = State(self.map, self.cameras)
-        stack = []
-        stack.insert(0, inistate)
-        evaluator = Evaluator()
-        while len(stack) > 0:
-            current = stack.pop()
-            # print("12345111111111111111111111111111111111111111111111111111111111111111111111111111111")
-            # print('\n'.join([''.join([str(camera) for camera in state.cameras])
-            #              for state in stack]))
-            # print("Parent:" + str(' '.join(str(camera) for camera in current.cameras)))
-
-            result = evaluator.evaluate(current)
-            if result[0] == 0:
-                return result
-
-            if result[0] < self.best_achievement:
-                self.best_achievement = result[0]
-                self.best_setup = result[1]
-            for i in range(0, len(self.cameras)):
-                nextState = current.move_camera(i)
-                # p
-                if nextState != 0:
-                    stack.insert(0, nextState)
-                    # print("Child:" + str(' '.join(str(camera) for camera in nextState.cameras)))
-                if nextState == 0:
-                    # print(len(stack))
-                    pass
-        print('bfs complete!')
-        return [self.best_achievement, self.best_setup]
+    #decrease TTL by 1 for all record, add newly tabuted record
+    def update_TTL_List(self, cam1, cam2):
+        flag = True
+        for record_ttl in self.List:
+            if record_ttl.TTL == 0 and flag:
+                flag = False
+                record_ttl.cam1 = cam1
+                record_ttl.cam2 = cam2
+                record_ttl.TTL = self.size
+            elif record_ttl.TTL > 0:
+                record_ttl.TTL -= 1
+        # #print tabu list
+        # for t in self.List:
+        #     print("cam1: ", t.cam1, "cam2: ", t.cam2, "TTL:", t.TTL)
 
 
-def Test():
-    print("1234")
-
-    cameras = [Camera([0, 0]),Camera([0, 0]),Camera([0, 0]),Camera([0, 0])]
-
-    evaluator = Evaluator()
-    evaluator.compute_min_achievement(cameras, None,0)
+class RecordTTL:
+    def __init__(self, cam1, cam2, TTL):
+        self.cam1 = cam1
+        self.cam2 = cam2
+        self.TTL = TTL
 
 def main():
     #initialize map
-    BeamSearchTest()
+    tabu_search()
 
 def complex_setup():
     map = Map([15,15])
@@ -448,14 +331,19 @@ def complex_setup():
     map.set_cell([12, 4], [0, True])
     map.set_cell([4, 6], [1, False])
     map.set_cell([5, 3], [1, False])
-    map.set_cell([12, 14], [1, False])
+    map.set_cell([6, 7], [1, False])
+    map.set_cell([10, 14], [1, False])
+    map.set_cell([11, 2], [1, False])
+    map.set_cell([12, 6], [1, False])
+    map.set_cell([13, 10], [1, False])
+    map.set_cell([14, 5], [1, False])
 
-    cameras = [Camera([0, 0], 0), Camera([0, 0], 0), Camera([0, 0], 0), Camera([0, 0], 0)]
+    cameras = [Camera([0, 0], 0), Camera([0, 0], 0), Camera([0, 0], 0), Camera([0, 0], 0), Camera([0, 0], 0), Camera([0, 0], 0), Camera([0, 0], 0), Camera([0, 0], 0), Camera([0, 0], 0)]
     return (map,cameras)
 
 def BeamSearchTest():
     # map = Map([9, 9])
-    # map.set_cell([1, 7], [1, False])
+    #map.set_cell([1, 7], [1, False])
     # map.set_cell([4, 4], [0, True])
     # map.set_cell([4, 6], [1, False])
     # map.set_cell([2, 3], [1, False])
@@ -466,30 +354,17 @@ def BeamSearchTest():
     result = bfs.start_bfs()
     print("Final Result: ", result[0])
 
-def DFSTest():
-    map = Map([5, 5])
-    map.set_cell([1, 1], [1, False])
-    map.set_cell([2, 2], [1, False])
-    map.set_cell([3, 3], [1, False])
-    # map.set_cell([4, 6], [0, True])
-    # map.set_cell([4, 4], [1, False])
-    # map.set_cell([2, 3], [1, False])
-    # map.set_cell([4, 7], [1, False])
-    # map.set_cell([2, 2], [1, False])
-    # map.set_cell([3, 3], [1, False])
-    # map.set_cell([4, 3], [1, False])
-    # initialize camera
-    cameras = [Camera([0, 0], 0), Camera([0, 0], 0),Camera([0, 0], 0)]
+def tabu_search():
+    # map = Map([4, 4])
+    #     # map.set_cell([1,1],[2,False])
+    #     # map.set_cell([2, 2], [2, False])
+    #     # map.set_cell([1, 2], [2, False])
+    #     # map.set_cell([2, 1], [2, False])
+    setup = complex_setup()
+    # cameras = [Camera([0, 0], 0), Camera([3, 3], 0)]
+    tabu = TabuSearch(setup[0], setup[1])
+    tabu.start_tabu()
 
-    # bfs = BFSWithNonDupQueue(map, cameras)
-    # result = bfs.start_bfs()
-    # print(result[0])
-    # print(*result[1])
-
-    dfs = DFS(map, cameras)
-    result = dfs.start()
-    print(result[0])
-    print(*result[1])
 
 
 if __name__ == '__main__':
