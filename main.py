@@ -330,14 +330,14 @@ def complex_setup():
     map.set_cell([12, 4], [0, True])
     map.set_cell([4, 6], [1, False])
     map.set_cell([5, 3], [1, False])
-    # map.set_cell([6, 7], [1, False])
-    # map.set_cell([10, 14], [1, False])
+    map.set_cell([6, 7], [1, False])
+    map.set_cell([10, 14], [1, False])
     # map.set_cell([11, 2], [1, False])
     # map.set_cell([12, 6], [1, False])
     # map.set_cell([13, 10], [1, False])
     # map.set_cell([14, 5], [1, False])
 
-    cameras = [Camera([0, 0], 0), Camera([0, 0], 0), Camera([0, 0], 0)]
+    cameras = [Camera([0, 0], 0), Camera([0, 0], 0), Camera([0, 0], 0),Camera([0, 0], 0),Camera([0, 0], 0)]
     return (map,cameras)
 
 def BeamSearchTest():
@@ -354,14 +354,14 @@ def BeamSearchTest():
     print("Final Result: ", result[0])
 
 def tabu_search():
-    map = Map([4, 4])
-    map.set_cell([1,1],[1,False])
-    map.set_cell([2, 2], [1, False])
-    map.set_cell([1, 2], [1, False])
-    map.set_cell([2, 1], [1, False])
-    # setup = complex_setup()
-    cameras = [Camera([0, 0], 0), Camera([3, 3], 0),Camera([3, 3], 0),Camera([3, 3], 0)]
-    tabu = TabuSearch(map, cameras)
+    # map = Map([4, 4])
+    # map.set_cell([1,1],[1,False])
+    # map.set_cell([2, 2], [1, False])
+    # map.set_cell([1, 2], [1, False])
+    # map.set_cell([2, 1], [1, False])
+    setup = complex_setup()
+    # cameras = [Camera([0, 0], 0), Camera([3, 3], 0),Camera([3, 3], 0),Camera([3, 3], 0)]
+    tabu = TabuSearch(setup[0], setup[1])
     tabu.start_tabu()
 
 
