@@ -43,49 +43,11 @@ class State:
                 self.cameras[z] = add
                 return True
         return False
-    #next state is defined by moving 1 camera by 1 position
-    def move_camera(self, camera_num):
-        new_cams = copy.deepcopy(self.cameras)
-        position = new_cams[camera_num].position
-        dimention = self.map.dimention
-
-        if position[0] == dimention[0] - 1 and position[1] == dimention[1] - 1:
-            #reached the end
-            return 0
-        elif position[0] >= dimention[0] - 1:
-            position[0] = 0
-            position[1] += 1
-            # print(*new_cams)
-            return State(self.map, new_cams)
-        else:
-            position[0] += 1
-            # print(*new_cams)
-            return State(self.map, new_cams)
 
 #evaluate the achievement of 1 state
 class Evaluator:
     def __init__(self):
         self.hi = "hi"
-
-    def check_valid_direction(self, cameras, map):
-
-        # print(local_map)
-        for camera in cameras:
-            while camera.orientation < 4:
-                local_map = copy.deepcopy(map)
-                achievement = 0
-                self.camera_visibility_model(camera, local_map)
-                for i in local_map.grid:
-                    for j in i:
-                        if j[0] > 0:
-                            achievement += j[0]
-                if achievement < map.total_priority:
-                    camera.valid_direction.insert(0,camera.orientation)
-                camera.orientation +=1
-            #reset orientation
-            camera.orientation = 0
-        #print(*cameras)
-
 
     #computed achievement for 1 camera orientation setup
     def compute_achievement(self, cameras, map):
@@ -339,19 +301,6 @@ def complex_setup():
 
     cameras = [Camera([0, 0], 0), Camera([0, 0], 0), Camera([0, 0], 0),Camera([0, 0], 0),Camera([0, 0], 0)]
     return (map,cameras)
-
-def BeamSearchTest():
-    # map = Map([9, 9])
-    #map.set_cell([1, 7], [1, False])
-    # map.set_cell([4, 4], [0, True])
-    # map.set_cell([4, 6], [1, False])
-    # map.set_cell([2, 3], [1, False])
-    # map.set_cell([8, 8], [1, False])
-    # cameras = [Camera([0, 0], 0), Camera([0, 0], 0), Camera([0, 0], 0), Camera([0, 0], 0)]
-    setup = complex_setup()
-    bfs = BeamSearch(setup[0], setup[1], 10)
-    result = bfs.start_bfs()
-    print("Final Result: ", result[0])
 
 def tabu_search():
     # map = Map([4, 4])
