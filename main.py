@@ -1,6 +1,7 @@
 import copy
 # import numpy as np
 import time
+import random
 
 
 class Map:
@@ -264,10 +265,12 @@ class CandiList:
                     self.List[(num_cam - 1) * 16 + j - 1].del_ach = -1000
 
         #sort list by delta ach
-        self.List.sort(key=lambda x: x.delete.position[1], reverse=False)
+        # self.List.sort(key=lambda x: x.add.position[1], reverse=True)
+        # self.List.sort(key=lambda x: x.delete.position[1], reverse=False)
+        random.shuffle(self.List)
         self.List.sort(key=lambda x : x.del_ach, reverse = True)
-        # for l in self.List:
-        #     print("add: ", l.add, "    delete: ", l.delete, "   delta ach: ", l.del_ach)
+        for l in self.List:
+            print("add: ", l.add, "    delete: ", l.delete, "   delta ach: ", l.del_ach)
 class Candi:
     def __init__(self):
         self.del_ach = -1000
@@ -288,15 +291,11 @@ class ListTTL:
 
     #check if cam1 position and cam2 position can be switch places
     def check_tabuted(self, cam1, cam2):
-        print("check tabuted cam1 ",cam1,"  cam2  ",cam2)
         for e in self.List:
             if e.cam1.position == cam1.position and e.cam2.position == cam2.position:
-                print("tabuted return true")
                 return True
             elif e.cam2.position == cam1.position and e.cam1.position == cam2.position:
-                print("tabuted return true")
                 return True
-        print("tabuted return false")
         return False
 
     #decrease TTL by 1 for all record, add newly tabuted record
@@ -331,14 +330,14 @@ def complex_setup():
     map.set_cell([12, 4], [0, True])
     map.set_cell([4, 6], [1, False])
     map.set_cell([5, 3], [1, False])
-    map.set_cell([6, 7], [1, False])
-    map.set_cell([10, 14], [1, False])
-    map.set_cell([11, 2], [1, False])
-    map.set_cell([12, 6], [1, False])
-    map.set_cell([13, 10], [1, False])
-    map.set_cell([14, 5], [1, False])
+    # map.set_cell([6, 7], [1, False])
+    # map.set_cell([10, 14], [1, False])
+    # map.set_cell([11, 2], [1, False])
+    # map.set_cell([12, 6], [1, False])
+    # map.set_cell([13, 10], [1, False])
+    # map.set_cell([14, 5], [1, False])
 
-    cameras = [Camera([0, 0], 0), Camera([0, 0], 0), Camera([0, 0], 0), Camera([0, 0], 0), Camera([0, 0], 0), Camera([0, 0], 0), Camera([0, 0], 0), Camera([0, 0], 0), Camera([0, 0], 0)]
+    cameras = [Camera([0, 0], 0), Camera([0, 0], 0), Camera([0, 0], 0)]
     return (map,cameras)
 
 def BeamSearchTest():
@@ -355,14 +354,14 @@ def BeamSearchTest():
     print("Final Result: ", result[0])
 
 def tabu_search():
-    # map = Map([4, 4])
-    #     # map.set_cell([1,1],[2,False])
-    #     # map.set_cell([2, 2], [2, False])
-    #     # map.set_cell([1, 2], [2, False])
-    #     # map.set_cell([2, 1], [2, False])
-    setup = complex_setup()
-    # cameras = [Camera([0, 0], 0), Camera([3, 3], 0)]
-    tabu = TabuSearch(setup[0], setup[1])
+    map = Map([4, 4])
+    map.set_cell([1,1],[1,False])
+    map.set_cell([2, 2], [1, False])
+    map.set_cell([1, 2], [1, False])
+    map.set_cell([2, 1], [1, False])
+    # setup = complex_setup()
+    cameras = [Camera([0, 0], 0), Camera([3, 3], 0),Camera([3, 3], 0),Camera([3, 3], 0)]
+    tabu = TabuSearch(map, cameras)
     tabu.start_tabu()
 
 
