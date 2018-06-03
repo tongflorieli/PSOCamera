@@ -36,7 +36,7 @@ class State:
     def __init__(self, map, cameras):
         self.map = map
         self.cameras = cameras
-        self.ach = -1000
+        self.ach = 1000
     def update_cams(self, add, delete):
         for z in range(len(self.cameras)):
             if self.cameras[z] == delete:
@@ -173,7 +173,7 @@ class TabuSearch:
                 #check if the candi is tabuted
                 if self.ListTTL.check_tabuted(candi.add, candi.delete):
                     a = "a"
-                elif candi.del_ach > -1000:
+                elif candi.del_ach <1000:
                     #update current state to the candi
                     cur_state.ach += candi.del_ach
                     result = cur_state.update_cams(candi.add, candi.delete)
@@ -268,12 +268,12 @@ class CandiList:
         # self.List.sort(key=lambda x: x.add.position[1], reverse=True)
         # self.List.sort(key=lambda x: x.delete.position[1], reverse=False)
         random.shuffle(self.List)
-        self.List.sort(key=lambda x : x.del_ach, reverse = True)
+        self.List.sort(key=lambda x : x.del_ach, reverse = False)
         for l in self.List:
             print("add: ", l.add, "    delete: ", l.delete, "   delta ach: ", l.del_ach)
 class Candi:
     def __init__(self):
-        self.del_ach = -1000
+        self.del_ach = 1000
         self.add = Camera([0,0],0)
         self.delete = Camera([0, 0], 0)
 
