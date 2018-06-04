@@ -221,9 +221,6 @@ class CandiList:
                 else:
                     self.List[(num_cam - 1) * 16 + j - 1].del_ach = 1000
 
-        #sort list by delta ach
-        # self.List.sort(key=lambda x: x.add.position[1], reverse=True)
-        # self.List.sort(key=lambda x: x.delete.position[1], reverse=False)
         random.shuffle(self.List)
         self.List.sort(key=lambda x : x.del_ach, reverse = False)
 
@@ -265,10 +262,6 @@ class ListTTL:
                 record_ttl.TTL = self.size
             elif record_ttl.TTL > 0:
                 record_ttl.TTL -= 1
-        # #print tabu list
-        # for t in self.List:
-        #     print("cam1: ", t.cam1, "cam2: ", t.cam2, "TTL:", t.TTL)
-
 
 class RecordTTL:
     def __init__(self, cam1, cam2, TTL):
@@ -288,10 +281,6 @@ def complex_setup():
     map.set_cell([5, 3], [1, False])
     map.set_cell([6, 7], [1, False])
     map.set_cell([10, 14], [1, False])
-    # map.set_cell([11, 2], [1, False])
-    # map.set_cell([12, 6], [1, False])
-    # map.set_cell([13, 10], [1, False])
-    # map.set_cell([14, 5], [1, False])
 
     cameras = [Camera([0, 0], 0), Camera([0, 0], 0), Camera([0, 0], 0),Camera([0, 0], 0),Camera([0, 0], 0)]
     return (map,cameras)
