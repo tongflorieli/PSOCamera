@@ -1,3 +1,6 @@
+'''
+  Usage: python3 main.py
+'''
 import copy
 # import numpy as np
 import time
@@ -56,7 +59,6 @@ class Evaluator:
         for camera in cameras:
             self.camera_visibility_model(camera, local_map)
 
-        # print(local_map)
         for i in local_map.grid:
             for j in i:
                 if j[0] > 0:
@@ -127,7 +129,6 @@ class TabuSearch:
         #compute candidate list
         while(1):
             self.CandiList.comp_list(cur_state.ach)
-            print("cur ach value: ", cur_state.ach)
             iterat_count += 1
             element_index = 0
             for candi in self.CandiList.List:
@@ -139,23 +140,14 @@ class TabuSearch:
                     #update current state to the candi
                     cur_state.ach += candi.del_ach
                     result = cur_state.update_cams(candi.add, candi.delete)
-                    print(result)
-                    print("cam added: ", candi.add)
-                    print("cam delete: ", candi.delete)
                     #update cur_cams in CandiList
                     self.CandiList.cur_cams = cur_state.cameras
                     #update best state
-                    print("cur_state.ach: ", cur_state.ach)
-                    #print cams
-                    for cam in cur_state.cameras:
-                        print(cam)
                     if cur_state.ach < best_state.ach:
                         best_state = cur_state
                         impro_count = 0
-                        print(impro_count)
                     else:
                         impro_count += 1
-                        print(impro_count)
                     #end if improve_limit iterations from last improvement
                     if impro_count > self.improve_limit:
                         print ("reach improve limit")
@@ -175,10 +167,13 @@ class TabuSearch:
                     return
             #end if ach value = 0
             if cur_state.ach == 0:
-                print ("found the optima")
+                print("found the optima")
                 print("iteration: ", iterat_count)
-                print("ach: ", cur_state.ach)
-                print(cur_state.map, cur_state.cameras)
+                print("ach value: ", cur_state.ach)
+                # print cams
+                for cam in cur_state.cameras:
+                    print(cam)
+                print(cur_state.map)
                 return
             # end if exceeded iteration limit
             if iterat_count > self.iteration_limit:
@@ -231,8 +226,7 @@ class CandiList:
         # self.List.sort(key=lambda x: x.delete.position[1], reverse=False)
         random.shuffle(self.List)
         self.List.sort(key=lambda x : x.del_ach, reverse = False)
-        for l in self.List:
-            print("add: ", l.add, "    delete: ", l.delete, "   delta ach: ", l.del_ach)
+
 class Candi:
     def __init__(self):
         self.del_ach = 1000
@@ -303,13 +297,7 @@ def complex_setup():
     return (map,cameras)
 
 def tabu_search():
-    # map = Map([4, 4])
-    # map.set_cell([1,1],[1,False])
-    # map.set_cell([2, 2], [1, False])
-    # map.set_cell([1, 2], [1, False])
-    # map.set_cell([2, 1], [1, False])
     setup = complex_setup()
-    # cameras = [Camera([0, 0], 0), Camera([3, 3], 0),Camera([3, 3], 0),Camera([3, 3], 0)]
     tabu = TabuSearch(setup[0], setup[1])
     tabu.start_tabu()
 
